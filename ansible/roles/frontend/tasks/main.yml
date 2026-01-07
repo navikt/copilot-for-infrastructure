@@ -1,0 +1,159 @@
+---
+# Frontend role - Configures Apache web server as reverse proxy
+
+- name: Ensure Apache is installed
+  dnf:
+    name:
+      - httpd
+      - mod_ssl
+    state: present
+  tags:
+    - apache
+
+- name: Configure Apache VirtualHost for reverse proxy
+  copy:
+    content: |
+      # Application VirtualHost Configuration
+      # Proxies requests to backend Java application
+
+      <VirtualHost *:80>
+          ServerName frontend
+          ServerAlias frontend.corp.local
+          DocumentRoot /var/www/html
+
+          # Enable proxy modules
+          ProxyRequests Off
+          ProxyPreserveHost On
+
+          # Health check endpoint
+          <Location /health>
+              ProxyPass http://backend:8080/health
+              ProxyPassReverse http://backend:8080/health
+          </Location>
+
+          # API endpoints - proxy to backend
+          <Location /api>
+              ProxyPass http://backend:8080/api
+              ProxyPassReverse http://backend:8080/api
+          </Location>
+
+          # Static content
+          <Directory /var/www/html>
+              Options Indexes FollowSymLinks
+              AllowOverride All
+              Require all granted
+          </Directory>
+
+          # Logging
+          ErrorLog /var/log/httpd/app_error.log
+          CustomLog /var/log/httpd/app_access.log combined
+          LogLevel warn
+      </VirtualHost>
+    dest: /etc/httpd/conf.d/app.conf
+    owner: root
+    group: root
+    mode: '0644'
+  register: apache_config
+  tags:
+    - apache
+    - reset
+
+- name: Ensure document root exists with correct permissions
+  file:
+    path: /var/www/html
+    state: directory
+    owner: apache
+    group: apache
+    mode: '0755'
+  tags:
+    - apache
+    - reset
+
+- name: Deploy index.html
+  copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Copilot Infrastructure Demo</title>
+          <style>
+              body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+              .container { background: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              h1 { color: #333; }
+              .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+              .ok { background: #d4edda; color: #155724; }
+              a { color: #007bff; }
+              code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <h1>🖥️ Infrastructure Demo</h1>
+              <p>Welcome to the Copilot for Infrastructure training environment.</p>
+
+              <h2>Quick Links</h2>
+              <ul>
+                  <li><a href="/health">Health Check</a> - Backend health status</li>
+                  <li><a href="/api/items">API Items</a> - Data from PostgreSQL</li>
+              </ul>
+
+              <h2>Architecture</h2>
+              <pre>
+      Frontend (Apache) → Backend (Java 8) → Database (PostgreSQL 13)
+         :80                :8080               :5432
+              </pre>
+
+              <h2>Monitoring</h2>
+              <p>Prometheus: <code>http://localhost:9090</code></p>
+              <p>Node exporters on port 9100 on each host</p>
+          </div>
+      </body>
+      </html>
+    dest: /var/www/html/index.html
+    owner: apache
+    group: apache
+    mode: '0644'
+  tags:
+    - apache
+    - reset
+
+- name: Ensure Apache is running
+  shell: |
+    if pgrep -x httpd > /dev/null; then
+      /usr/sbin/httpd -k graceful
+    fi
+    pgrep -x httpd > /dev/null
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - apache
+    - reset
+
+- name: Wait for Apache to be ready
+  wait_for:
+    host: 127.0.0.1
+    port: 80
+    delay: 2
+    timeout: 30
+  tags:
+    - apache
+    - reset
+
+- name: Verify Apache is serving static content
+  uri:
+    url: http://127.0.0.1/
+    method: GET
+    status_code: 200
+  register: apache_check
+  ignore_errors: yes
+  tags:
+    - verify
+    - reset
+
+- name: Report Apache status
+  debug:
+    msg: "Apache web server: {{ 'OK' if apache_check.status == 200 else 'FAILED' }}"
+  tags:
+    - verify
+    - reset

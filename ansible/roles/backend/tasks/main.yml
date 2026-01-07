@@ -1,0 +1,77 @@
+---
+# Backend role - Configures Java application server
+# Note: /opt/app is mounted read-only from Docker, so we only verify configuration
+
+- name: Verify Java is installed
+  command: java -version
+  register: java_check
+  changed_when: false
+  tags:
+    - java
+
+- name: Display Java version
+  debug:
+    msg: "Java version: {{ java_check.stderr_lines[0] }}"
+  tags:
+    - java
+
+- name: Ensure log and run directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /var/log/app
+    - /var/run/app
+  tags:
+    - backend
+    - reset
+
+# Skip deploying to /opt/app since it's mounted read-only from Docker
+# The application files are already present from the Docker build
+
+- name: Check if backend process is running
+  shell: pgrep -f 'java.*backend' || echo "not running"
+  register: backend_running
+  changed_when: false
+  tags:
+    - backend
+    - reset
+
+- name: Report if backend needs restart
+  debug:
+    msg: "Backend process status: {{ 'running' if 'not running' not in backend_running.stdout else 'not running' }}"
+  tags:
+    - backend
+    - reset
+
+- name: Wait for backend to be ready
+  wait_for:
+    host: 127.0.0.1
+    port: 8080
+    delay: 5
+    timeout: 60
+  ignore_errors: yes
+  tags:
+    - backend
+    - reset
+
+- name: Verify backend health endpoint
+  uri:
+    url: http://127.0.0.1:8080/health
+    method: GET
+    status_code: 200
+  register: backend_health
+  ignore_errors: yes
+  tags:
+    - verify
+    - reset
+
+- name: Report backend status
+  debug:
+    msg: "Backend application: {{ 'OK' if backend_health.status == 200 else 'FAILED - check /var/log/app/backend.log' }}"
+  tags:
+    - verify
+    - reset

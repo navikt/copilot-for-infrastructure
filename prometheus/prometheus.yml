@@ -1,0 +1,45 @@
+# Prometheus Configuration for Infrastructure Demo
+# Scrapes node_exporter on all CentOS hosts
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+  external_labels:
+    environment: 'demo'
+    project: 'copilot-infrastructure'
+
+# Alerting configuration (no alertmanager in this demo)
+alerting:
+  alertmanagers: []
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          instance: 'prometheus'
+
+  # Node exporters on all CentOS hosts
+  - job_name: 'node'
+    static_configs:
+      - targets: ['frontend:9100']
+        labels:
+          instance: 'frontend'
+          role: 'webserver'
+
+      - targets: ['backend:9100']
+        labels:
+          instance: 'backend'
+          role: 'appserver'
+
+      - targets: ['database:9100']
+        labels:
+          instance: 'database'
+          role: 'dbserver'
+
+# Recording rules for common queries (optional)
+# rule_files:
+#   - 'rules/*.yml'

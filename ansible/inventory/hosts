@@ -1,0 +1,26 @@
+# Copilot Infrastructure Demo - Ansible Inventory
+# This inventory defines all servers in our simulated corporate network
+
+[all:vars]
+ansible_user=root
+ansible_ssh_private_key_file=/root/.ssh/id_rsa
+ansible_python_interpreter=/usr/libexec/platform-python
+
+[webservers]
+frontend ansible_host=172.21.0.10
+
+[appservers]
+backend ansible_host=172.21.0.11
+
+[dbservers]
+database ansible_host=172.21.0.12
+
+# Prometheus uses Alpine and doesn't have SSH - managed separately
+# [monitoring]
+# prometheus ansible_host=172.21.0.20
+
+# Group for all AlmaLinux servers (excludes Prometheus which is Alpine-based)
+[almalinux:children]
+webservers
+appservers
+dbservers

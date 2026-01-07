@@ -1,0 +1,5 @@
+Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+    IdentityFile /root/.ssh/id_rsa

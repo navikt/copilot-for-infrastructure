@@ -1,0 +1,52 @@
+---
+# BROKEN PLAYBOOK - Multiple issues to fix!
+# This playbook has intentional errors for training purposes
+
+- hosts: webservers
+  tasks:
+  - name: Install useful packages
+    yum:
+      name: vim
+      state: install
+
+   - name: Create app directory
+     file:
+       path: /opt/myapp
+       state: directory
+       mode: 0755
+
+  - name: Copy application config
+    copy:
+      src: app.conf
+      dest: /opt/myapp/app.conf
+    notify: restart myapp
+
+  - name: Install and configure Apache
+    yum:
+      name:
+        - httpd
+        - mod_ssl
+      state: latest
+
+  - name: Deploy custom index page
+    copy:
+      content: |
+        <html>
+        <body>
+        <h1>Hello from {{ inventory_hostname }}</h1>
+        <p>App version: {{ app_version }}</p>
+        </body>
+        </html>
+      dest: /var/www/html/index.html
+
+  - name: Ensure Apache is running
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+
+  handlers:
+    - name: restart application
+      service:
+        name: myapp
+        state: restarted

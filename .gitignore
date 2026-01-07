@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+app/build/
+app/lib/
+*.class
+*.jar
+!app/backend.jar
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres-data/
+prometheus-data/
+frontend-data/
+
+# SSH keys (generated)
+containers/base/ssh/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,139 @@
+---
+# Database role - Configures PostgreSQL server
+# Note: Using AlmaLinux 8 with PostgreSQL from dnf modules (data in /var/lib/pgsql/data)
+
+- name: Ensure PostgreSQL is running
+  shell: |
+    if ! pgrep -x postgres > /dev/null; then
+      su - postgres -c "pg_ctl start -D /var/lib/pgsql/data -l /var/lib/pgsql/data/log/startup.log -w"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - postgresql
+    - reset
+
+- name: Wait for PostgreSQL to be ready
+  wait_for:
+    host: 127.0.0.1
+    port: 5432
+    delay: 2
+    timeout: 30
+  tags:
+    - postgresql
+    - reset
+
+- name: Ensure pg_hba.conf allows backend connections
+  copy:
+    content: |
+      # PostgreSQL Client Authentication Configuration File
+      # TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+      # Local connections
+      local   all             all                                     peer
+      local   all             postgres                                peer
+
+      # IPv4 local connections
+      host    all             all             127.0.0.1/32            md5
+
+      # IPv6 local connections
+      host    all             all             ::1/128                 md5
+
+      # Docker network - allow app servers
+      host    appdb           appuser         172.21.0.0/16           md5
+      host    all             all             172.21.0.0/16           md5
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  register: pghba_changed
+  tags:
+    - postgresql
+    - reset
+
+- name: Reload PostgreSQL if pg_hba.conf changed
+  shell: su - postgres -c "pg_ctl reload -D /var/lib/pgsql/data"
+  when: pghba_changed.changed
+  tags:
+    - postgresql
+    - reset
+
+- name: Ensure postgresql.conf has correct settings
+  lineinfile:
+    path: /var/lib/pgsql/data/postgresql.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regexp: '^#?listen_addresses', line: "listen_addresses = '*'" }
+    - { regexp: '^#?port', line: 'port = 5432' }
+    - { regexp: '^#?max_connections', line: 'max_connections = 100' }
+  tags:
+    - postgresql
+
+- name: Check if appdb database exists
+  shell: su - postgres -c "psql -lqt | cut -d \| -f 1 | grep -qw appdb && echo 'exists' || echo 'missing'"
+  register: db_check
+  changed_when: false
+  tags:
+    - postgresql
+
+- name: Create application database and user
+  shell: |
+    su - postgres -c "psql -c \"CREATE USER appuser WITH PASSWORD 'apppassword';\"" 2>/dev/null || true
+    su - postgres -c "psql -c \"CREATE DATABASE appdb OWNER appuser;\"" 2>/dev/null || true
+    su - postgres -c "psql -d appdb -c \"
+      CREATE TABLE IF NOT EXISTS items (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO items (name, description)
+      SELECT 'Server Alpha', 'Primary application server - AlmaLinux 8'
+      WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = 'Server Alpha');
+
+      INSERT INTO items (name, description)
+      SELECT 'Server Beta', 'Secondary application server - AlmaLinux 8'
+      WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = 'Server Beta');
+
+      INSERT INTO items (name, description)
+      SELECT 'Database Primary', 'PostgreSQL primary node'
+      WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = 'Database Primary');
+
+      INSERT INTO items (name, description)
+      SELECT 'Load Balancer', 'HAProxy load balancer'
+      WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = 'Load Balancer');
+
+      INSERT INTO items (name, description)
+      SELECT 'Monitoring', 'Prometheus monitoring stack'
+      WHERE NOT EXISTS (SELECT 1 FROM items WHERE name = 'Monitoring');
+
+      GRANT ALL PRIVILEGES ON DATABASE appdb TO appuser;
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO appuser;
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO appuser;
+    \""
+  args:
+    executable: /bin/bash
+  when: db_check.stdout == 'missing'
+  tags:
+    - postgresql
+    - reset
+
+- name: Verify database connectivity
+  shell: |
+    PGPASSWORD=apppassword psql -h 127.0.0.1 -U appuser -d appdb -c "SELECT COUNT(*) FROM items;"
+  register: db_verify
+  changed_when: false
+  ignore_errors: yes
+  tags:
+    - verify
+    - reset
+
+- name: Report database status
+  debug:
+    msg: "PostgreSQL database: {{ 'OK' if db_verify.rc == 0 else 'FAILED' }}"
+  tags:
+    - verify
+    - reset

@@ -1,0 +1,68 @@
+---
+# Common role - Applied to all AlmaLinux servers
+# Sets up base configuration, users, and node_exporter
+
+# Tasks
+- name: Ensure common packages are installed
+  dnf:
+    name:
+      - vim
+      - curl
+      - wget
+      - net-tools
+      - bind-utils
+      - tcpdump
+      - htop
+      - lsof
+    state: present
+  tags:
+    - packages
+
+- name: Ensure node_exporter is running
+  shell: |
+    pgrep -f node_exporter || /usr/local/bin/node_exporter --web.listen-address=:9100 &
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - monitoring
+
+# Note: /etc/hosts is managed by Docker and cannot be modified via Ansible
+# Hostnames are resolved via Docker's internal DNS instead
+- name: Configure /etc/hosts for internal DNS
+  lineinfile:
+    path: /etc/hosts
+    line: "{{ item }}"
+    state: present
+  loop:
+    - "172.21.0.10 frontend frontend.corp.local"
+    - "172.21.0.11 backend backend.corp.local"
+    - "172.21.0.12 database database.corp.local"
+    - "172.21.0.20 prometheus prometheus.corp.local"
+  ignore_errors: yes
+  tags:
+    - dns
+    - reset
+
+- name: Set timezone
+  timezone:
+    name: Europe/Oslo
+  ignore_errors: yes
+  tags:
+    - system
+
+- name: Configure shell environment
+  copy:
+    content: |
+      # Custom environment for Copilot Infrastructure Demo
+      export HISTSIZE=10000
+      export HISTFILESIZE=20000
+      export HISTTIMEFORMAT="%Y-%m-%d %H:%M:%S "
+      alias ll='ls -la'
+      alias la='ls -la'
+      alias ports='ss -tlnp'
+      alias psg='ps aux | grep'
+    dest: /etc/profile.d/custom.sh
+    mode: '0644'
+  tags:
+    - system

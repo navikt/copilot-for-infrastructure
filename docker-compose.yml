@@ -1,0 +1,154 @@
+services:
+  # ==========================================================================
+  # Frontend - Apache Web Server / Reverse Proxy
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./containers/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    hostname: frontend
+    networks:
+      corp-lan:
+        ipv4_address: 172.21.0.10
+    ports:
+      - "18080:80"     # Web traffic (mapped to 18080 to avoid conflicts)
+      - "2222:22"      # SSH access
+    volumes:
+      - frontend-data:/var/www/html
+      - ./containers/shared-ssh/id_rsa.pub:/root/.ssh/authorized_keys:ro
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Backend - Java Application Server
+  # ==========================================================================
+  backend:
+    build:
+      context: ./containers/backend
+      dockerfile: Dockerfile
+    container_name: backend
+    hostname: backend
+    networks:
+      corp-lan:
+        ipv4_address: 172.21.0.11
+    ports:
+      - "8081:8080"    # Direct app access (for debugging)
+      - "2223:22"      # SSH access
+    volumes:
+      - ./app:/opt/app:ro
+      - ./containers/shared-ssh/id_rsa.pub:/root/.ssh/authorized_keys:ro
+    depends_on:
+      - database
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=appdb
+      - DB_USER=appuser
+      - DB_PASSWORD=apppassword
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Database - PostgreSQL Server
+  # ==========================================================================
+  database:
+    build:
+      context: ./containers/database
+      dockerfile: Dockerfile
+    container_name: database
+    hostname: database
+    networks:
+      corp-lan:
+        ipv4_address: 172.21.0.12
+    ports:
+      - "5433:5432"    # PostgreSQL (mapped to 5433 to avoid conflicts)
+      - "2224:22"      # SSH access
+    volumes:
+      - postgres-data:/var/lib/pgsql/data
+      - ./containers/shared-ssh/id_rsa.pub:/root/.ssh/authorized_keys:ro
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Prometheus - Monitoring
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    hostname: prometheus
+    networks:
+      corp-lan:
+        ipv4_address: 172.21.0.20
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Ansible Control Node
+  # ==========================================================================
+  ansible-control:
+    build:
+      context: ./containers/ansible-control
+      dockerfile: Dockerfile
+    container_name: ansible-control
+    hostname: ansible-control
+    networks:
+      corp-lan:
+        ipv4_address: 172.21.0.100
+    volumes:
+      - ./ansible:/ansible:ro
+      - ./exercises:/exercises:ro
+      - ./containers/shared-ssh:/root/.ssh:ro
+    depends_on:
+      - frontend
+      - backend
+      - database
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  corp-lan:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  frontend-data:
+  postgres-data:
+  prometheus-data:
