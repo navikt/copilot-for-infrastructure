@@ -39,10 +39,10 @@ ps aux | grep postgres
 ss -tlnp | grep 5432
 
 # Check PostgreSQL logs
-tail -50 /var/lib/pgsql/13/data/log/*.log
+tail -50 /var/lib/pgsql/data/log/*.log
 
 # View pg_hba.conf
-cat /var/lib/pgsql/13/data/pg_hba.conf
+cat /var/lib/pgsql/data/pg_hba.conf
 
 # Test local connection
 sudo -u postgres psql -c "SELECT 1"

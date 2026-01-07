@@ -1,28 +1,33 @@
 #!/bin/bash
 # Exercise 07: DNS Resolution Failure
-# This script breaks hostname resolution for the database
-
-set -e
+# This script breaks hostname resolution by changing the DB_HOST config
 
 echo "Applying Exercise 07: DNS..."
 
 docker exec backend bash -c '
-    # Backup original hosts file
-    cp /etc/hosts /etc/hosts.bak
+    # Stop the backend app
+    /etc/init.d/backend-app stop 2>/dev/null || true
+    sleep 1
+    rm -f /var/run/app/backend.pid
 
-    # Remove database entry from /etc/hosts
-    grep -v "database" /etc/hosts > /tmp/hosts.new
-    cp /tmp/hosts.new /etc/hosts
+    # Backup original init script
+    cp /etc/init.d/backend-app /etc/init.d/backend-app.bak 2>/dev/null || true
 
-    # Add a wrong entry to make it more confusing
-    echo "172.20.0.99 database-wrong" >> /etc/hosts
+    # Change DB_HOST variable assignment to a non-existent hostname
+    # Only target the line starting with DB_HOST=
+    sed -i "s/^DB_HOST=.*/DB_HOST=\"database-server.corp.local\"/" /etc/init.d/backend-app
 
-    echo "Break applied: database hostname cannot be resolved"
+    # Start with wrong hostname
+    /etc/init.d/backend-app start
+
+    echo "Break applied: Backend now tries to connect to non-existent hostname"
 '
 
 echo ""
 echo "Exercise 07 applied!"
-echo "The backend can no longer resolve the 'database' hostname."
+echo "The backend is now configured with wrong database hostname."
 echo ""
 echo "Test with: curl http://localhost:8080/api/items"
-echo "Or: make shell-backend && ping database"
+echo "Check logs: make shell-backend && cat /var/log/app/backend.log"
+echo ""
+echo "Note: The fix is to correct DB_HOST in /etc/init.d/backend-app"

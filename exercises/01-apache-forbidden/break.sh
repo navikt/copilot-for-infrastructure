@@ -14,8 +14,9 @@ docker exec frontend bash -c '
     # Break 2: Change Require directive to denied
     sed -i "s/Require all granted/Require all denied/g" /etc/httpd/conf.d/app.conf
 
-    # Reload Apache to apply config changes
-    apachectl graceful
+    # Reload Apache to apply config changes (using SIGHUP since no systemd)
+    pkill -HUP httpd || httpd -k graceful 2>/dev/null || true
+    sleep 1
 
     echo "Break applied: Apache should now return 403 Forbidden"
 '

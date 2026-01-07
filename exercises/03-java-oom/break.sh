@@ -1,6 +1,6 @@
 #!/bin/bash
 # Exercise 03: Java OutOfMemory Error
-# This script configures the JVM with insufficient heap memory
+# This script simulates a JVM with insufficient heap memory
 
 set -e
 
@@ -9,37 +9,42 @@ echo "Applying Exercise 03: Java OOM..."
 docker exec backend bash -c '
     # Stop the application first
     /etc/init.d/backend-app stop 2>/dev/null || true
-
-    # Configure extremely small heap size
-    cat > /opt/app/app.conf << EOF
-# JVM Options - BROKEN: Heap too small!
-JAVA_OPTS="-Xms16m -Xmx32m"
-
-# Database connection settings
-DB_HOST="database"
-DB_PORT="5432"
-DB_NAME="appdb"
-DB_USER="appuser"
-DB_PASSWORD="apppassword"
-
-export JAVA_OPTS DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD
-EOF
+    sleep 1
 
     # Clean up any old PID files
     rm -f /var/run/app/backend.pid
 
-    # Clear old logs
-    > /var/log/app/backend.log
+    # Modify the init script to use tiny heap (backup first)
+    cp /etc/init.d/backend-app /etc/init.d/backend-app.bak
+    sed -i "s/JAVA_OPTS=\"\${JAVA_OPTS:--Xms256m -Xmx512m}\"/JAVA_OPTS=\"-Xms4m -Xmx8m\"/" /etc/init.d/backend-app
 
-    # Try to start (it will likely crash)
-    /etc/init.d/backend-app start || true
+    # Add OOM error to log to simulate the problem
+    cat >> /var/log/app/backend.log << EOF
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at java.util.Arrays.copyOf(Arrays.java:3210)
+	at java.util.ArrayList.grow(ArrayList.java:265)
+	at java.util.ArrayList.ensureExplicitCapacity(ArrayList.java:239)
+	at java.util.ArrayList.ensureCapacityInternal(ArrayList.java:231)
+	at java.util.ArrayList.add(ArrayList.java:462)
+	at com.corp.backend.Application.loadData(Application.java:142)
+	at com.corp.backend.Application.main(Application.java:58)
 
-    echo "Break applied: JVM heap set to 32MB (way too small)"
+JVM heap exhausted. Current settings: -Xms4m -Xmx8m
+Application terminated due to insufficient memory.
+EOF
+
+    echo ""
+    echo "Note: In this demo, the app is too small to actually OOM."
+    echo "Check /var/log/app/backend.log to see simulated OOM error."
+    echo "The fix is still to increase -Xmx in /etc/init.d/backend-app"
 '
+
+# Restart the app (it will work, but the exercise is about finding/fixing the config)
+docker exec backend /etc/init.d/backend-app start 2>/dev/null || true
 
 echo ""
 echo "Exercise 03 applied!"
-echo "The application may crash repeatedly due to OutOfMemoryError."
+echo "Check the logs for OutOfMemoryError messages."
 echo ""
 echo "Test with: curl http://localhost:8080/health"
-echo "Check logs: make shell-backend && tail -f /var/log/app/backend.log"
+echo "Check logs: make shell-backend && cat /var/log/app/backend.log"
