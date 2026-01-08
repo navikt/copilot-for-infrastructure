@@ -13,6 +13,10 @@ global:
 alerting:
   alertmanagers: []
 
+# Alerting rules
+rule_files:
+  - 'rules/*.yml'
+
 # Scrape configurations
 scrape_configs:
   # Prometheus itself

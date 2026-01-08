@@ -1,0 +1,77 @@
+# Prometheus Alerting Rules for Infrastructure Monitoring
+# These rules detect server availability and performance issues
+
+groups:
+  - name: availability
+    rules:
+      # Alert when any target is down for more than 1 minute
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target {{ $labels.instance }} is down"
+          description: "{{ $labels.job }}/{{ $labels.instance }} has been down for more than 1 minute."
+
+      # Alert when a target is flapping (unstable)
+      - alert: TargetFlapping
+        expr: changes(up[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Target {{ $labels.instance }} is flapping"
+          description: "{{ $labels.instance }} has changed state {{ $value }} times in the last 10 minutes."
+
+      # Alert when node_exporter is not responding
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node exporter down on {{ $labels.instance }}"
+          description: "Node exporter on {{ $labels.instance }} is not responding. Metrics collection failed."
+
+  - name: system_resources
+    rules:
+      # Alert on high load average
+      - alert: HighLoadAverage
+        expr: node_load1 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load on {{ $labels.instance }}"
+          description: "Load average is {{ $value }} on {{ $labels.instance }}."
+
+      # Alert on high CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance)(irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% on {{ $labels.instance }} for more than 5 minutes."
+
+      # Alert on high memory usage
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 85% on {{ $labels.instance }}."
+
+      # Alert on disk space running low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space on {{ $labels.instance }} is below 15% available."
