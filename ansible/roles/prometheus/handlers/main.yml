@@ -1,0 +1,10 @@
+---
+# Handlers for Prometheus role
+
+- name: Reload Prometheus
+  uri:
+    url: "http://prometheus:9090/-/reload"
+    method: POST
+    status_code: [200, 204]
+  delegate_to: localhost
+  ignore_errors: yes

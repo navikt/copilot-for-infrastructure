@@ -1,0 +1,43 @@
+---
+# Prometheus role - Manages Prometheus configuration and alert rules
+# This role copies the prometheus configuration and alert rules
+
+- name: Ensure Prometheus rules directory exists
+  file:
+    path: /etc/prometheus/rules
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: Copy Prometheus configuration
+  copy:
+    src: "{{ playbook_dir }}/../../prometheus/prometheus.yml"
+    dest: /etc/prometheus/prometheus.yml
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+  notify: Reload Prometheus
+
+- name: Copy alert rules
+  copy:
+    src: "{{ playbook_dir }}/../../prometheus/rules/"
+    dest: /etc/prometheus/rules/
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+  notify: Reload Prometheus
+
+- name: Validate Prometheus configuration
+  command: promtool check config /etc/prometheus/prometheus.yml
+  delegate_to: localhost
+  run_once: true
+  changed_when: false
+  ignore_errors: yes
+  register: promtool_check
+
+- name: Display Prometheus config validation result
+  debug:
+    msg: "Prometheus config validation: {{ 'PASSED' if promtool_check.rc == 0 else 'FAILED - ' + promtool_check.stderr }}"
+  delegate_to: localhost
+  run_once: true

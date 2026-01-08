@@ -38,6 +38,51 @@
     - frontend
     - reset
 
+- name: Configure Prometheus monitoring
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Copy Prometheus alert rules to container
+      command: docker cp {{ playbook_dir }}/../../prometheus/rules prometheus:/etc/prometheus/
+      changed_when: true
+      tags:
+        - prometheus
+        - monitoring
+        - reset
+
+    - name: Reload Prometheus configuration
+      uri:
+        url: "http://localhost:9090/-/reload"
+        method: POST
+        status_code: [200, 204]
+      ignore_errors: yes
+      tags:
+        - prometheus
+        - monitoring
+        - reset
+
+    - name: Verify Prometheus rules loaded
+      uri:
+        url: "http://localhost:9090/api/v1/rules"
+        method: GET
+        return_content: yes
+      register: prometheus_rules
+      ignore_errors: yes
+      tags:
+        - prometheus
+        - monitoring
+        - verify
+
+    - name: Report Prometheus rules status
+      debug:
+        msg: "Prometheus alert rules: {{ prometheus_rules.json.data.groups | length }} groups loaded"
+      when: prometheus_rules.status == 200
+      tags:
+        - prometheus
+        - monitoring
+        - verify
+
 - name: Verify all services are running
   hosts: almalinux
   gather_facts: no
