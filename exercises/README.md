@@ -44,23 +44,25 @@ This folder contains self-paced troubleshooting exercises designed to demonstrat
 
 ## Exercise Overview
 
-| Exercise            | Difficulty | Topic                   | Time Estimate |
-| ------------------- | ---------- | ----------------------- | ------------- |
-| 01-apache-forbidden | Easy       | Web server permissions  | 10-15 min     |
-| 02-selinux-proxy    | Medium     | SELinux contexts        | 15-20 min     |
-| 03-java-oom         | Medium     | JVM memory tuning       | 15-20 min     |
-| 04-systemd-service  | Easy       | Service management      | 10-15 min     |
-| 05-pghba-auth       | Easy       | Database authentication | 10-15 min     |
-| 06-firewall-blocked | Medium     | Firewall rules          | 15-20 min     |
-| 07-dns-broken       | Easy       | Name resolution         | 10-15 min     |
-| 08-ansible-broken   | Medium     | Ansible playbooks       | 20-30 min     |
+| Exercise             | Difficulty | Topic                   | Time Estimate |
+| -------------------- | ---------- | ----------------------- | ------------- |
+| 01-apache-forbidden  | Easy       | Web server permissions  | 10-15 min     |
+| 02-selinux-proxy     | Medium     | SELinux contexts        | 15-20 min     |
+| 03-java-oom          | Medium     | JVM memory tuning       | 15-20 min     |
+| 04-systemd-service   | Easy       | Service management      | 10-15 min     |
+| 05-pghba-auth        | Easy       | Database authentication | 10-15 min     |
+| 06-firewall-blocked  | Medium     | Firewall rules          | 15-20 min     |
+| 07-dns-broken        | Easy       | Name resolution         | 10-15 min     |
+| 08-ansible-broken    | Medium     | Ansible playbooks       | 20-30 min     |
+| 09-prometheus-alerts | Medium     | Monitoring & metrics    | 15-20 min     |
+| 10-log-analysis      | Easy       | Log investigation       | 15-20 min     |
 
 ## Suggested Order
 
 For beginners, we recommend this progression:
 
-1. **Start easy**: 01, 04, 05, 07
-2. **Medium challenges**: 02, 03, 06
+1. **Start easy**: 01, 04, 05, 07, 10
+2. **Medium challenges**: 02, 03, 06, 09
 3. **Advanced**: 08 (combines multiple skills)
 
 ## Tips for Using Copilot
