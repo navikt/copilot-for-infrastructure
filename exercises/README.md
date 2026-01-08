@@ -18,9 +18,9 @@ This folder contains self-paced troubleshooting exercises designed to demonstrat
 
 2. **Observe symptoms**: Check if the application is working
    ```bash
-   curl http://localhost:8080/
-   curl http://localhost:8080/health
-   curl http://localhost:8080/api/items
+   curl http://localhost:18080/
+   curl http://localhost:18080/health
+   curl http://localhost:18080/api/items
    ```
 
 3. **Investigate**: SSH into containers and use Copilot to help

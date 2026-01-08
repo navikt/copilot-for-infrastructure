@@ -25,19 +25,19 @@ cat /etc/hosts
 You'll see the database entry is missing or points to wrong IP:
 ```
 127.0.0.1   localhost
-172.20.0.10 frontend
-172.20.0.11 backend
+172.21.0.10 frontend
+172.21.0.11 backend
 # database entry missing or wrong!
 ```
 
 ### 3. Verify the correct IP
 
 ```bash
-# Database container has IP 172.20.0.12
-ping 172.20.0.12
+# Database container has IP 172.21.0.12
+ping 172.21.0.12
 # Works!
 
-nc -zv 172.20.0.12 5432
+nc -zv 172.21.0.12 5432
 # Connection succeeded
 ```
 
@@ -46,7 +46,7 @@ nc -zv 172.20.0.12 5432
 ### Add the correct hosts entry
 
 ```bash
-echo "172.20.0.12 database database.corp.local" >> /etc/hosts
+echo "172.21.0.12 database database.corp.local" >> /etc/hosts
 ```
 
 Or edit the file:
@@ -56,19 +56,19 @@ vi /etc/hosts
 
 Add:
 ```
-172.20.0.12 database database.corp.local
+172.21.0.12 database database.corp.local
 ```
 
 ### Verify the fix
 
 ```bash
 getent hosts database
-# 172.20.0.12    database database.corp.local
+# 172.21.0.12    database database.corp.local
 
 ping database
 # Works!
 
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # Returns data
 ```
 
@@ -89,7 +89,7 @@ This means:
 
 ```
 IP_ADDRESS    HOSTNAME    [ALIASES...]
-172.20.0.12   database    database.corp.local db
+172.21.0.12   database    database.corp.local db
 ```
 
 ### DNS configuration (/etc/resolv.conf)

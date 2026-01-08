@@ -16,7 +16,7 @@ tail -50 /var/log/httpd/error_log
 
 You should see entries like:
 ```
-[authz_core:error] [pid 123] [client 172.20.0.1:54321] AH01630: client denied by server configuration: /var/www/html/
+[authz_core:error] [pid 123] [client 172.21.0.1:54321] AH01630: client denied by server configuration: /var/www/html/
 ```
 
 ### 2. Check directory permissions
@@ -80,7 +80,7 @@ systemctl reload httpd
 ## Verify the Fix
 
 ```bash
-curl http://localhost:8080/
+curl http://localhost:18080/
 ```
 
 You should now see the welcome page.

@@ -8,14 +8,14 @@ The Apache reverse proxy was working yesterday, but now requests to `/health` an
 
 ```bash
 # Static content works
-curl http://localhost:8080/
+curl http://localhost:18080/
 # Returns: HTML page (200 OK)
 
 # But API proxying fails
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Returns: 503 Service Unavailable
 
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # Returns: 503 Service Unavailable
 ```
 

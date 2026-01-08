@@ -8,7 +8,7 @@ After a server reboot, the backend Java application won't start. The service scr
 
 ```bash
 # Try to access the API
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Connection refused
 
 # Check service status

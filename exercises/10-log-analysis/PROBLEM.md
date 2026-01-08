@@ -8,11 +8,11 @@ Users are reporting intermittent errors when using the application. The errors h
 
 ```bash
 # Sometimes requests fail
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # Occasionally returns: {"error": "Internal server error", "message": "..."}
 
 # Health check usually passes
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Usually returns healthy, but sometimes shows issues
 ```
 

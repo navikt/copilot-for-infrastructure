@@ -9,7 +9,7 @@ Users are reporting that the website is returning "403 Forbidden" errors. The Ap
 When you try to access the application:
 
 ```bash
-curl http://localhost:8080/
+curl http://localhost:18080/
 ```
 
 You get a 403 Forbidden error instead of the expected web page.

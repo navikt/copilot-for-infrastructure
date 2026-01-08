@@ -82,7 +82,7 @@ JAVA_OPTS="-Xms256m -Xmx512m"
 ps aux | grep java
 
 # Test the endpoint
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 ```
 
 ## Understanding JVM Memory

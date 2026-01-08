@@ -23,7 +23,7 @@ docker exec frontend bash -c '
 
 echo ""
 echo "Exercise 01 applied!"
-echo "Test with: curl http://localhost:8080/"
+echo "Test with: curl http://localhost:18080/"
 echo "You should see a 403 Forbidden error."
 echo ""
 echo "SSH into frontend to investigate: make shell-frontend"

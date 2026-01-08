@@ -14,8 +14,8 @@ tail -50 /var/log/httpd/error_log
 
 You should see entries like:
 ```
-[proxy:error] [pid 123] (13)Permission denied: AH00957: HTTP: attempt to connect to 172.20.0.11:8080 (backend) failed
-[proxy_http:error] [pid 123] [client 172.20.0.1:54321] AH01114: HTTP: failed to make connection to backend (backend)
+[proxy:error] [pid 123] (13)Permission denied: AH00957: HTTP: attempt to connect to 172.21.0.11:8080 (backend) failed
+[proxy_http:error] [pid 123] [client 172.21.0.1:54321] AH01114: HTTP: failed to make connection to backend (backend)
 ```
 
 ### 2. Check SELinux status
@@ -66,7 +66,7 @@ setsebool -P httpd_can_network_connect on
 getsebool httpd_can_network_connect
 # Returns: httpd_can_network_connect --> on
 
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Should now return 200 OK
 ```
 

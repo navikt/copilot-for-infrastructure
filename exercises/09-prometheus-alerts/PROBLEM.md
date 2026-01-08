@@ -13,7 +13,7 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job:
 # One of the node_exporter targets shows as "down"
 
 # But the application seems to work fine
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Returns healthy
 ```
 

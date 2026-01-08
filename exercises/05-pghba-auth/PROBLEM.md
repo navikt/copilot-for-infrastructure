@@ -8,11 +8,11 @@ The backend application can't connect to the database. Developers confirm the cr
 
 ```bash
 # API returns database error
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # {"error": "Database error", "message": "...authentication failed..."}
 
 # Health check shows database down
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # {"status": "unhealthy", "database": {"status": "down"}}
 
 # But database is running!

@@ -61,7 +61,7 @@ rm /var/run/app/backend.pid
 ps aux | grep backend.jar
 # Should show the Java process
 
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Should return 200 OK
 ```
 

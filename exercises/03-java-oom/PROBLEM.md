@@ -8,7 +8,7 @@ The backend Java application keeps crashing and restarting. Users are experienci
 
 ```bash
 # Health check sometimes works, sometimes fails
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 # Intermittent: 200 OK or connection refused
 
 # Check if backend is running

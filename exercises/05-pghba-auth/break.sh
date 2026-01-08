@@ -11,7 +11,7 @@ docker exec database bash -c '
     # Create broken pg_hba.conf with wrong IP range
     cat > /var/lib/pgsql/data/pg_hba.conf << EOF
 # PostgreSQL Client Authentication Configuration File
-# BROKEN: Only allows connections from 172.20.0.99 (wrong IP!)
+# BROKEN: Only allows connections from 172.21.0.99 (wrong IP!)
 
 # Local connections (these still work)
 local   all             all                                     peer
@@ -20,8 +20,8 @@ local   all             postgres                                peer
 # IPv4 local connections
 host    all             all             127.0.0.1/32            md5
 
-# Docker network - WRONG! Only allows 172.20.0.99 (old network)
-host    all             all             172.20.0.99/32          md5
+# Docker network - WRONG! Only allows 172.21.0.99 (old network)
+host    all             all             172.21.0.99/32          md5
 EOF
 
     chown postgres:postgres /var/lib/pgsql/data/pg_hba.conf
@@ -37,7 +37,7 @@ echo ""
 echo "Exercise 05 applied!"
 echo "The backend can no longer connect to the database."
 echo ""
-echo "Test with: curl http://localhost:8080/api/items"
+echo "Test with: curl http://localhost:18080/api/items"
 echo "You should see a database authentication error."
 echo ""
 echo "Hint: The backend IP is 172.21.0.11"

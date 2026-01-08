@@ -8,7 +8,7 @@ After a network configuration change, the backend application reports it cannot 
 
 ```bash
 # API returns connection error
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # {"error": "Database error", "message": "UnknownHostException: database"}
 
 # Hostname resolution fails
@@ -17,7 +17,7 @@ ping database
 # ping: database: Name or service not known
 
 # But IP works
-ping 172.20.0.12
+ping 172.21.0.12
 # Works fine!
 ```
 
@@ -49,8 +49,8 @@ nslookup database
 dig database
 
 # Direct IP test
-ping 172.20.0.12
-nc -zv 172.20.0.12 5432
+ping 172.21.0.12
+nc -zv 172.21.0.12 5432
 ```
 
 ## Hints
@@ -67,7 +67,7 @@ The /etc/hosts file might have been corrupted or the database entry might be wro
 
 <details>
 <summary>Hint 3</summary>
-Add the correct entry to /etc/hosts: `172.20.0.12 database database.corp.local`
+Add the correct entry to /etc/hosts: `172.21.0.12 database database.corp.local`
 </details>
 
 ## Ask Copilot

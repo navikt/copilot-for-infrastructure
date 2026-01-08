@@ -8,7 +8,7 @@ The backend application was working fine, but after a "security hardening" updat
 
 ```bash
 # API fails with database error
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 # {"error": "Database error", "message": "Connection refused"}
 
 # Database is running locally

@@ -25,7 +25,7 @@ You should see:
 ```
 Chain INPUT (policy ACCEPT)
 pkts bytes target     prot opt in     out     source               destination
-   0     0 REJECT     tcp  --  *      *       172.20.0.0/16        0.0.0.0/0    tcp dpt:5432 reject-with icmp-port-unreachable
+   0     0 REJECT     tcp  --  *      *       172.21.0.0/16        0.0.0.0/0    tcp dpt:5432 reject-with icmp-port-unreachable
 ```
 
 ### 3. Confirm PostgreSQL is listening
@@ -43,14 +43,14 @@ PostgreSQL is listening correctly - the firewall is blocking.
 
 ```bash
 # Find and remove the specific rule
-iptables -D INPUT -p tcp -s 172.20.0.0/16 --dport 5432 -j REJECT
+iptables -D INPUT -p tcp -s 172.21.0.0/16 --dport 5432 -j REJECT
 ```
 
 ### Option 2: Add an ACCEPT rule before the REJECT
 
 ```bash
 # Accept PostgreSQL from backend
-iptables -I INPUT 1 -p tcp -s 172.20.0.11 --dport 5432 -j ACCEPT
+iptables -I INPUT 1 -p tcp -s 172.21.0.11 --dport 5432 -j ACCEPT
 ```
 
 ### Option 3: Flush all rules (use carefully!)
@@ -67,7 +67,7 @@ nc -zv database 5432
 # Connection succeeded
 
 # Test the API
-curl http://localhost:8080/api/items
+curl http://localhost:18080/api/items
 ```
 
 ## Understanding iptables
@@ -107,13 +107,13 @@ iptables -A INPUT -p tcp --dport 5432 -j ACCEPT
 
 ```bash
 # Allow PostgreSQL from specific subnet
-iptables -I INPUT -p tcp -s 172.20.0.0/16 --dport 5432 -j ACCEPT
+iptables -I INPUT -p tcp -s 172.21.0.0/16 --dport 5432 -j ACCEPT
 
 # Save rules (CentOS/RHEL)
 iptables-save > /etc/sysconfig/iptables
 
 # Or use firewalld
-firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.20.0.0/16" port port="5432" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.21.0.0/16" port port="5432" protocol="tcp" accept'
 firewall-cmd --reload
 ```
 
