@@ -1,238 +1,290 @@
 # Infrastructure Documentation
 
-**Last Updated:** March 2019
-**Author:** Terje Johansen (left the company)
-**Status:** Production
-
-> ⚠️ This document may be outdated. Contact the Platform Team for current information.
+**Last Updated:** January 2026
+**Author:** Platform Team
+**Status:** Training Environment
 
 ---
 
 ## Overview
 
-The Item Management System (IMS) is a mission-critical application used by the inventory department. It runs on our standard CentOS 7 infrastructure and follows the 3-tier architecture pattern mandated by the Enterprise Architecture team.
+This is a **training environment** for Linux infrastructure troubleshooting. It simulates a 3-tier application infrastructure using Docker containers that behave like VMs. The environment runs on AlmaLinux 8 (RHEL-compatible) and is designed for practicing real-world troubleshooting scenarios.
+
+The Item Management System (IMS) follows the classic 3-tier architecture pattern: web server → application server → database.
 
 ## System Components
 
-### Frontend Server (IMSWEB01)
+### Frontend Server
 
-| Property   | Value                      |
-| ---------- | -------------------------- |
-| Hostname   | frontend.corp.local        |
-| IP Address | 172.20.0.10                |
-| OS         | CentOS 7.9                 |
-| Role       | Web Server / Load Balancer |
-| Owner      | Web Operations Team        |
+| Property      | Value                      |
+| ------------- | -------------------------- |
+| Hostname      | frontend                   |
+| IP Address    | 172.21.0.10                |
+| OS            | AlmaLinux 8                |
+| Role          | Web Server / Reverse Proxy |
+| External Port | 18080 (HTTP), 2222 (SSH)   |
 
 **Services:**
-- Apache HTTPD 2.4 (systemctl start httpd)
-- SSL certificates in `/etc/pki/tls/certs/`
+- Apache HTTPD 2.4 with mod_proxy, mod_ssl (`systemctl start httpd`)
 - Configuration in `/etc/httpd/conf.d/app.conf`
+- node_exporter on port 9100
 
 **Important Notes:**
-- SELinux must be in enforcing mode for compliance
-- SSL termination happens here - backend traffic is unencrypted
+- SELinux in enforcing mode for compliance
 - Apache runs as `apache` user
+- Proxies requests to backend:8080
+- Health endpoint: `http://localhost/health`
 - Log rotation configured in `/etc/logrotate.d/httpd`
 
-### Application Server (IMSAPP01)
+### Application Server (Backend)
 
-| Property   | Value                    |
-| ---------- | ------------------------ |
-| Hostname   | backend.corp.local       |
-| IP Address | 172.20.0.11              |
-| OS         | CentOS 7.9               |
-| Role       | Java Application Server  |
-| Owner      | Application Support Team |
+| Property      | Value                   |
+| ------------- | ----------------------- |
+| Hostname      | backend                 |
+| IP Address    | 172.21.0.11             |
+| OS            | AlmaLinux 8             |
+| Role          | Java Application Server |
+| External Port | 8081 (App), 2223 (SSH)  |
 
 **Services:**
-- Java 8 OpenJDK (required version - do not upgrade!)
+- Java 8 OpenJDK
 - Application JAR in `/opt/app/backend.jar`
 - Runs via systemd: `systemctl start backend-app`
-- JVM options in `/etc/sysconfig/backend-app`
+- node_exporter on port 9100
 
-**JVM Configuration:**
+**JVM Configuration (Environment Variables):**
 ```
-JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC"
+JAVA_OPTS=-Xms256m -Xmx512m
+DB_HOST=database
+DB_PORT=5432
+DB_NAME=appdb
+DB_USER=appuser
+DB_PASSWORD=apppassword
 ```
 
 **Important Notes:**
 - Application listens on port 8080 (HTTP only)
 - Database connection configured via environment variables
-- Logs written to `/var/log/app/backend.log`
+- Logs written to `/opt/app/logs/backend.log`
 - Health endpoint: `http://localhost:8080/health`
-- The app user is `appuser` with restricted shell
 
-### Database Server (IMSDB01)
+### Database Server
 
-| Property   | Value               |
-| ---------- | ------------------- |
-| Hostname   | database.corp.local |
-| IP Address | 172.20.0.12         |
-| OS         | CentOS 7.9          |
-| Role       | PostgreSQL Database |
-| Owner      | DBA Team            |
+| Property      | Value                         |
+| ------------- | ----------------------------- |
+| Hostname      | database                      |
+| IP Address    | 172.21.0.12                   |
+| OS            | AlmaLinux 8                   |
+| Role          | PostgreSQL Database           |
+| External Port | 5433 (PostgreSQL), 2224 (SSH) |
 
 **Services:**
-- PostgreSQL 13 (from PGDG repository)
-- Data directory: `/var/lib/pgsql/13/data`
+- PostgreSQL 13
+- Data directory: `/var/lib/pgsql/data`
 - Service: `systemctl start postgresql-13`
+- node_exporter on port 9100
 
 **Database Details:**
 - Database name: `appdb`
 - Application user: `appuser`
-- Password: Stored in Vault (ask DBA team)
+- Password: `apppassword`
 - Connection string: `jdbc:postgresql://database:5432/appdb`
 
-**Backup Schedule:**
-- Full backup: Daily at 02:00 via pg_dump
-- WAL archiving: Enabled, archived to `/backup/wal/`
-- Retention: 30 days
-
 **Important Notes:**
-- pg_hba.conf allows connections from 172.20.0.0/16 subnet only
+- pg_hba.conf allows connections from 172.21.0.0/16 subnet
 - `max_connections` set to 100 (increase requires restart)
-- Tablespace on `/data` volume (100GB allocated)
+
+### Prometheus Server
+
+| Property      | Value                   |
+| ------------- | ----------------------- |
+| Hostname      | prometheus              |
+| IP Address    | 172.21.0.20             |
+| Image         | prom/prometheus:v2.45.0 |
+| Role          | Monitoring              |
+| External Port | 9090                    |
+
+### Ansible Control Node
+
+| Property   | Value              |
+| ---------- | ------------------ |
+| Hostname   | ansible-control    |
+| IP Address | 172.21.0.100       |
+| OS         | AlmaLinux 8        |
+| Role       | Configuration Mgmt |
+
+**Volumes:**
+
+- `/ansible` - Ansible playbooks and roles (read-only)
+- `/exercises` - Troubleshooting exercises (read-only)
 
 ## Network Architecture
 
-```
-Internet
-    │
-    ▼
-┌─────────┐
-│ HAProxy │  (External LB - managed by Network Team)
-│ :443    │
-└────┬────┘
-     │
-     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    DMZ Network                               │
-│                                                              │
-│    ┌──────────────┐                                         │
-│    │   IMSWEB01   │  frontend.corp.local                    │
-│    │   :80/:443   │                                         │
-│    └──────┬───────┘                                         │
-│           │                                                  │
-└───────────┼──────────────────────────────────────────────────┘
-            │
-┌───────────┼──────────────────────────────────────────────────┐
-│           ▼              Corporate Network                   │
-│    ┌──────────────┐    ┌──────────────┐                     │
-│    │   IMSAPP01   │───▶│   IMSDB01    │                     │
-│    │    :8080     │    │    :5432     │                     │
-│    └──────────────┘    └──────────────┘                     │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
+```text
+                    Docker Host (localhost)
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+         ▼                 ▼                 ▼
+    :18080 (HTTP)     :8081 (App)      :5433 (PostgreSQL)
+    :2222 (SSH)       :2223 (SSH)      :2224 (SSH)
+         │                 │                 │
+┌────────┼─────────────────┼─────────────────┼────────────────┐
+│        ▼                 ▼                 ▼                │
+│  ┌──────────┐      ┌──────────┐      ┌──────────┐         │
+│  │ frontend │─────▶│ backend  │─────▶│ database │         │
+│  │  :80     │      │  :8080   │      │  :5432   │         │
+│  │ :9100    │      │  :9100   │      │  :9100   │         │
+│  └──────────┘      └──────────┘      └──────────┘         │
+│   172.21.0.10       172.21.0.11       172.21.0.12         │
+│                                                            │
+│  ┌──────────┐      ┌─────────────────┐                    │
+│  │prometheus│      │ ansible-control │                    │
+│  │  :9090   │      │                 │                    │
+│  └──────────┘      └─────────────────┘                    │
+│   172.21.0.20          172.21.0.100                       │
+│                                                            │
+│              Network: corp-lan (172.21.0.0/16)            │
+└────────────────────────────────────────────────────────────┘
 ```
 
-## Firewall Rules
+## Port Mappings (Host → Container)
 
-| Source     | Destination | Port | Protocol | Purpose           |
-| ---------- | ----------- | ---- | -------- | ----------------- |
-| HAProxy    | IMSWEB01    | 80   | TCP      | HTTP traffic      |
-| HAProxy    | IMSWEB01    | 443  | TCP      | HTTPS traffic     |
-| IMSWEB01   | IMSAPP01    | 8080 | TCP      | App proxy         |
-| IMSAPP01   | IMSDB01     | 5432 | TCP      | Database          |
-| Monitoring | All servers | 9100 | TCP      | Prometheus scrape |
-| Ansible    | All servers | 22   | TCP      | SSH management    |
+| Host Port | Container  | Container Port | Purpose           |
+| --------- | ---------- | -------------- | ----------------- |
+| 18080     | frontend   | 80             | HTTP traffic      |
+| 2222      | frontend   | 22             | SSH access        |
+| 8081      | backend    | 8080           | Direct app access |
+| 2223      | backend    | 22             | SSH access        |
+| 5433      | database   | 5432           | PostgreSQL        |
+| 2224      | database   | 22             | SSH access        |
+| 9090      | prometheus | 9090           | Prometheus UI     |
+
+## Internal Network (container-to-container)
+
+| Source          | Destination | Port | Protocol | Purpose        |
+| --------------- | ----------- | ---- | -------- | -------------- |
+| frontend        | backend     | 8080 | TCP      | App proxy      |
+| backend         | database    | 5432 | TCP      | Database       |
+| prometheus      | all hosts   | 9100 | TCP      | Node exporter  |
+| ansible-control | all hosts   | 22   | TCP      | SSH management |
 
 ## Monitoring
 
 ### Prometheus
 
-- URL: http://prometheus.corp.local:9090
+- URL: <http://localhost:9090>
 - Scrape interval: 15 seconds
-- Retention: 15 days
+- External labels: `environment=demo`, `project=copilot-infrastructure`
+
+### Scrape Targets
+
+| Job Name   | Target         | Labels                            |
+| ---------- | -------------- | --------------------------------- |
+| prometheus | localhost:9090 | instance=prometheus               |
+| node       | frontend:9100  | instance=frontend, role=webserver |
+| node       | backend:9100   | instance=backend, role=appserver  |
+| node       | database:9100  | instance=database, role=dbserver  |
 
 ### Key Metrics
 
-| Metric                      | Alert Threshold | Description             |
-| --------------------------- | --------------- | ----------------------- |
-| `up`                        | 0               | Service availability    |
-| `node_cpu_seconds_total`    | >90% for 5m     | CPU saturation          |
-| `node_memory_MemFree_bytes` | <500MB          | Memory exhaustion       |
-| `node_disk_io_time_seconds` | >80% for 5m     | Disk I/O saturation     |
-| `pg_up`                     | 0               | PostgreSQL availability |
-
-### Grafana Dashboards
-
-- Node Exporter Full: Overview of all servers
-- PostgreSQL Database: Database-specific metrics
-- Application: JVM metrics and response times
+| Metric                      | Alert Threshold | Description          |
+| --------------------------- | --------------- | -------------------- |
+| `up`                        | 0               | Service availability |
+| `node_cpu_seconds_total`    | >90% for 5m     | CPU saturation       |
+| `node_memory_MemFree_bytes` | <500MB          | Memory exhaustion    |
+| `node_disk_io_time_seconds` | >80% for 5m     | Disk I/O saturation  |
 
 ## Runbooks
 
-### Starting the Application Stack
+### Starting the Environment
 
-1. Start database first:
-   ```bash
-   ssh root@database.corp.local
-   systemctl start postgresql-13
-   # Wait for PostgreSQL to be ready
-   pg_isready -h localhost -p 5432
-   ```
+Use Docker Compose to manage the environment:
 
-2. Start application server:
-   ```bash
-   ssh root@backend.corp.local
-   systemctl start backend-app
-   # Verify health
-   curl http://localhost:8080/health
-   ```
-
-3. Start web server:
-   ```bash
-   ssh root@frontend.corp.local
-   systemctl start httpd
-   # Verify proxy
-   curl http://localhost/health
-   ```
-
-### Restarting Services
-
-**Apache:**
 ```bash
-systemctl restart httpd
-# Check for config errors first:
+# Build and start all containers
+make up
+
+# Or using docker compose directly
+docker compose up -d --build
+```
+
+### Shell Access to Containers
+
+```bash
+# Access frontend (Apache)
+make shell-frontend
+# Or: docker exec -it frontend bash
+
+# Access backend (Java app)
+make shell-backend
+# Or: docker exec -it backend bash
+
+# Access database (PostgreSQL)
+make shell-database
+# Or: docker exec -it database bash
+
+# Access Ansible control node
+make shell-ansible
+# Or: docker exec -it ansible-control bash
+```
+
+### Checking Service Status (Inside Containers)
+
+**Apache (frontend):**
+
+```bash
+systemctl status httpd
 apachectl configtest
+curl http://localhost/health
 ```
 
-**Java Application:**
+**Java Application (backend):**
+
 ```bash
-systemctl restart backend-app
-# Monitor startup:
-tail -f /var/log/app/backend.log
+systemctl status backend-app
+curl http://localhost:8080/health
+tail -f /opt/app/logs/backend.log
 ```
 
-**PostgreSQL:**
+**PostgreSQL (database):**
+
 ```bash
-systemctl restart postgresql-13
-# Note: This will disconnect all clients!
+systemctl status postgresql-13
+pg_isready -h localhost -p 5432
+psql -U appuser -d appdb -c "SELECT 1"
+```
+
+### Provisioning with Ansible
+
+From the ansible-control container:
+
+```bash
+cd /ansible
+ansible-playbook -i inventory/hosts playbooks/site.yml
 ```
 
 ### Checking Logs
 
-| Service    | Log Location                    |
-| ---------- | ------------------------------- |
-| Apache     | `/var/log/httpd/error_log`      |
-| Apache     | `/var/log/httpd/app_access.log` |
-| Backend    | `/var/log/app/backend.log`      |
-| PostgreSQL | `/var/lib/pgsql/13/data/log/`   |
-| System     | `journalctl -u <service-name>`  |
+| Service    | Log Location                    | Command                                 |
+| ---------- | ------------------------------- | --------------------------------------- |
+| Apache     | `/var/log/httpd/error_log`      | `tail -f /var/log/httpd/error_log`      |
+| Apache     | `/var/log/httpd/app_access.log` | `tail -f /var/log/httpd/app_access.log` |
+| Backend    | `/opt/app/logs/backend.log`     | `tail -f /opt/app/logs/backend.log`     |
+| PostgreSQL | `/var/lib/pgsql/13/data/log/`   | `journalctl -u postgresql-13`           |
+| System     | journald                        | `journalctl -u <service-name>`          |
 
 ### Common Issues
 
 #### "Connection refused" to database
 
 1. Check PostgreSQL is running: `systemctl status postgresql-13`
-2. Check firewall: `firewall-cmd --list-ports`
-3. Check pg_hba.conf allows client IP
-4. Verify port binding: `ss -tlnp | grep 5432`
+2. Check pg_hba.conf allows client IP
+3. Verify port binding: `ss -tlnp | grep 5432`
 
 #### Apache returns 403 Forbidden
 
-1. Check SELinux: `getenforce` and `audit2why < /var/log/audit/audit.log`
+1. Check SELinux: `getenforce` and `ausearch -m avc -ts recent`
 2. Check file permissions on DocumentRoot
 3. Check Directory configuration in Apache config
 4. Verify user/group ownership (should be apache:apache)
@@ -240,44 +292,50 @@ systemctl restart postgresql-13
 #### Java application won't start
 
 1. Check available memory: `free -m`
-2. Review JVM options in `/etc/sysconfig/backend-app`
-3. Check if port 8080 is already in use
-4. Look for errors in `/var/log/app/backend.log`
+2. Review JVM options (JAVA_OPTS environment variable)
+3. Check if port 8080 is already in use: `ss -tlnp | grep 8080`
+4. Look for errors in `/opt/app/logs/backend.log`
 5. Verify database connectivity
 
-#### High CPU on database server
+#### 502 Bad Gateway from Apache
 
-1. Check for long-running queries: `SELECT * FROM pg_stat_activity;`
-2. Look for missing indexes: `EXPLAIN ANALYZE <slow_query>`
-3. Check for lock contention
-4. Review `pg_stat_statements` for query patterns
+1. Check backend is running: `curl http://backend:8080/health`
+2. Check proxy configuration in `/etc/httpd/conf.d/app.conf`
+3. Check SELinux httpd_can_network_connect: `getsebool httpd_can_network_connect`
 
-## Maintenance Windows
+## Exercises
 
-- **Standard:** Sundays 02:00-06:00
-- **Emergency:** Contact On-Call Lead
-- **Change freeze:** Last 2 weeks of each quarter
+This environment includes 10 troubleshooting exercises in `/exercises/`:
 
-## Contacts
+| #   | Exercise          | Topic                     |
+| --- | ----------------- | ------------------------- |
+| 01  | apache-forbidden  | HTTP 403 errors           |
+| 02  | selinux-proxy     | SELinux blocking proxy    |
+| 03  | java-oom          | JVM OutOfMemory issues    |
+| 04  | systemd-service   | Service management        |
+| 05  | pghba-auth        | PostgreSQL authentication |
+| 06  | firewall-blocked  | Firewall rules            |
+| 07  | dns-broken        | DNS resolution            |
+| 08  | ansible-broken    | Ansible playbook errors   |
+| 09  | prometheus-alerts | Monitoring configuration  |
+| 10  | log-analysis      | Log investigation         |
 
-| Role               | Name             | Phone          |
-| ------------------ | ---------------- | -------------- |
-| Application Owner  | Kari Nordmann    | +47 XXX XX XXX |
-| DBA Team Lead      | Ole Hansen       | +47 XXX XX XXX |
-| Network Operations | network-ops@corp | N/A            |
-| Platform Team      | platform@corp    | N/A            |
+To start an exercise:
+
+```bash
+make break-01  # Introduces problem for exercise 01
+```
 
 ## Change History
 
-| Date       | Author         | Change                           |
-| ---------- | -------------- | -------------------------------- |
-| 2019-03-15 | Terje Johansen | Initial documentation            |
-| 2019-06-22 | Terje Johansen | Added runbooks section           |
-| 2019-09-01 | Kari Nordmann  | Updated contact information      |
-| 2020-01-15 | Ole Hansen     | Updated PostgreSQL to version 13 |
+| Date       | Author         | Change                                       |
+| ---------- | -------------- | -------------------------------------------- |
+| 2019-03-15 | Terje Johansen | Initial documentation                        |
+| 2019-06-22 | Terje Johansen | Added runbooks section                       |
+| 2019-09-01 | Kari Nordmann  | Updated contact information                  |
+| 2020-01-15 | Ole Hansen     | Updated PostgreSQL to version 13             |
+| 2026-01-08 | Platform Team  | Migrated to Docker/AlmaLinux 8, updated docs |
 
 ---
 
-*For infrastructure changes, submit a ticket to ServiceNow queue "Platform-Infra".*
-
-*Note: This system is scheduled for migration to Kubernetes in Q4 2023.*
+*This is a training environment for infrastructure troubleshooting practice.*
